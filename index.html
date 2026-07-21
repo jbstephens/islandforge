@@ -4445,8 +4445,9 @@ function validAt(k, gx, gy) {
     /* coastal buildings (seaport) NEED a beach tile; everything else avoids
        sand — except POWER POLES, which march across any land (v5a) */
     if (!B[k].pole && sandAt(gx + dx, gy + dy) !== coastal) return false;
-    /* v7: megastructures rise on the MAIN island only (kid-legible skyline) */
-    if (B[k].mega && isleIdAt(gx + dx, gy + dy) !== isleIdAt(CX, CYG)) return false;
+    /* v7: megastructures rise on the MAIN island only (kid-legible skyline),
+       and never so far north the tower would poke out of the world bake */
+    if (B[k].mega && (gy < 7 || isleIdAt(gx + dx, gy + dy) !== isleIdAt(CX, CYG))) return false;
   }
   return true;
 }
@@ -5713,7 +5714,7 @@ function updateMission(dt) {
         }
         const r = p.carry.pop();
         cargo[r] = (cargo[r] || 0) + 1;
-        addFloat(lx, ly - 40, '+1 CRATE (' + cargoTotal() + '/' + bargeSlots() + ')', RES_COL[r]);
+        addFloat(lx, ly - 130, '+1 CRATE (' + cargoTotal() + '/' + bargeSlots() + ')', RES_COL[r]);   // above the BOARD prompt
         SFX.thunk();
       }
     }
@@ -9356,7 +9357,7 @@ function drawScanScreen() {
   const sc = scanScr;
   if (!sc) return;
   ctx.globalAlpha = 1;
-  otxt('SCAN COMPLETE — CHOOSE AN ASTEROID!', W / 2, 96, 30, '#9fd8ff');
+  otxt('SCAN COMPLETE — CHOOSE AN ASTEROID!', W / 2, 148, 30, '#9fd8ff');
   const HAZ_NAMES = { pebbles: 'PEBBLE SHOWER', crumble: 'CRUMBLE EDGE', flare: 'SOLAR FLARES',
                       drift: 'DRIFT FIELD', sparky: 'SPARKY TECH' };
   const RES_NAMES2 = { astroiron: 'ASTRO IRON', crystal: 'CRYSTAL', alloy: 'ALIEN TECH' };
@@ -9810,7 +9811,9 @@ function renderPlay() {
                                   : bz.to === 'mars' ? '✕ ALL ABOARD — HOME TO MARS!'
                                   : '✕ BOARD THE SURVEY BARGE!')
            : bz.ship === 'cruiser' ? '✕ BOARD THE MARS CRUISER!' : '✕ BOARD THE ROCKET!',
-             bz.cx, bz.cy - 96, 15, '#7dffe0');
+             bz.cx, world === 'mission' ? bz.cy + 62 : bz.cy - 96, 15, '#7dffe0');
+             /* v7: on missions the prompt sits BELOW the barge — deposit
+                'CHUNKS!' floats own the sky above it */
   }
 
   /* ghosts under everything mobile (hidden during cinematics) */
@@ -10318,7 +10321,7 @@ function renderPlay() {
   if (paused) drawPause();
   if (modal) drawModal();
   if (confirmPrestige) drawPrestige();
-  if (banners.length && !(travel && travel.phase === 'scan')) drawBanner(banners[0]);   // v7: the scan owns its screen
+  if (banners.length && !vignette && !(travel && travel.phase === 'scan')) drawBanner(banners[0]);   // v7: the scan + vignettes own their screens
 }
 
 function render() {
@@ -10331,7 +10334,7 @@ function render() {
    UPDATE + MAIN LOOP
    ═══════════════════════════════════════════════════════════════════════ */
 function updatePlay(dt) {
-  if (banners.length) {
+  if (banners.length && !vignette) {               // v7: vignettes hold banners too
     banners[0].t += dt * (banners.length > 1 ? 2.4 : 1);   // queued banners drain fast
     if (banners[0].t > banners[0].dur) banners.shift();
   }
